@@ -1,0 +1,174 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-image: linear-gradient(to bottom, #243949 0%, #517fa4 100%);
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+}
+
+.app-contenedor {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.barra-de-navegacion {
+    background-color: #4CAF50;
+    color: white;
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo-contenedor {
+    display: flex;
+    align-items: center;
+}
+
+.logo {
+    width: 50px;
+    height: 50px;
+    background-image: url('img/Logo.png');
+    background-size: cover;
+    background-position: center;
+    border-radius: 50%;
+    margin-right: 15px;
+}
+
+.logo-texto {
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+.btn-salir {
+    background-color: #f44336;
+    color: white;
+    padding: 10px 15px;
+    border-radius: 5px;
+    font-size: 1rem;
+    font-weight: bold;
+    text-decoration: none;
+    transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.btn-salir:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 10px rgba(0, 0, 0);
+    background-color: #d32f2f;
+}
+
+.contenedor-principal {
+    flex-grow: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 25px;
+}
+
+.contenedor-principal-grupo {
+    background-color: white;
+    padding: 25px;
+    border-radius: 15px;
+    box-shadow: 0 5px 10px rgba(0, 0, 0);
+    width: 100%;
+    max-width: 1500px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 25px;
+}
+
+.titulo {
+    background-color: #4CAF50;
+    color: white;
+    padding: 15px 0;
+    width: calc(100% + 50px);
+    margin: -25px -25px 25px -25px;
+    text-align: center;
+    font-size: 25px;
+    font-weight: bold;
+    border-top-left-radius: 15px;
+    border-top-right-radius: 15px;
+}
+
+.chart-contenedor {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 50px;
+}
+
+.chart-item{
+    background-image: linear-gradient(to bottom, #c4c5c7 0%, #dcdddf 50%, #ebebeb 100%);
+    padding: 25px;
+    border-radius: 15px;
+}
+
+.chart-item:nth-child(3){
+    grid-column-start: 3;
+    grid-column-end: 4;
+    grid-row-start: 1;
+    grid-row-end: 3;
+}
+
+.chart-item:nth-child(4){
+    grid-column-start: 1;
+    grid-column-end: 3;
+}
+
+.chart-item canvas {
+    width: 400px !important;
+    height: 400px !important;
+}
+
+.chart-item #myChartPie1{
+    margin-bottom: 100px;
+}
+
+.chart-item #myChartLine{
+    width: 900px !important;
+    height: 400px !important;
+}
+
+.icono-volver{
+    width: 16px;
+    height: 16px;
+    filter: invert(100%);
+}
+
+.display-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 15px;
+    width: 100%;
+    margin-bottom: 25px;
+}
+
+.botones {
+    background-color: #4CAF50;
+    color: white;
+    border-radius: 15px;
+    padding: 15px 25px;
+    transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
+    text-align: center;
+}
+
+.botones:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 10px rgba(0, 0, 0);
+    background-color: #45a049;
+}
+
+.numero {
+    font-size: 50px;
+    margin-bottom: 15px;
+    font-weight: bold;
+}
+
+.botones span {
+    font-size: 15px;
+    font-weight: bold;
+}
