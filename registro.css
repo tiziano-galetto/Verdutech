@@ -1,6 +1,14 @@
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-image: linear-gradient(to bottom, #243949 0%, #517fa4 100%);
+    background-color: #000;
+    background-image: radial-gradient(
+        ellipse at 50% 50%,
+        rgba(76, 175, 80, 0.50) 25%,
+        rgba(76, 175, 80, 0.25) 50%,
+        transparent 100%
+    );
+    background-size: 100% 100%;
+    background-position: center;
     margin: 0;
     padding: 0;
     min-height: 100vh;
@@ -12,6 +20,7 @@ body {
     background-color: #4CAF50;
     color: white;
     box-sizing: border-box;
+    border-bottom: 2px solid white;
 }
 
 .logo-contenedor {
@@ -139,10 +148,22 @@ body {
     color: #4CAF50;
     text-decoration: none;
     font-weight: bold;
+    position: relative;
 }
 
-.link a:hover {
-    text-decoration: underline;
+.link a::before {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    width: 0%;
+    height: 2px;
+    background-color: #4CAF50;
+    transition: all .4s;
+}
+
+.link a:hover:before {
+    width: 100%;
 }
 
 .mensaje-error {
@@ -153,4 +174,34 @@ body {
     margin-bottom: 1rem;
     text-align: center;
     border: 1px solid #f44336;
+}
+
+.requisitos-contraseña {
+    list-style: none;
+    padding: 0;
+    margin: 5px;
+}
+
+.requisitos-contraseña li {
+    font-size: 0.75rem;
+    color: #696969;
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: color 0.2s ease;
+}
+
+.requisitos-contraseña li::before {
+    content: '✕';
+    font-size: 0.75rem;
+}
+
+.requisitos-contraseña li.cumplido {
+    color: #4CAF50;
+}
+
+.requisitos-contraseña li.cumplido::before {
+    content: '✓';
+    font-size: 0.75rem;
 }

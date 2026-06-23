@@ -35,7 +35,7 @@ class PDF extends FPDF
       $this->SetTextColor(76,175,80);
       $this->Cell(50);
       $this->SetFont('Arial', 'B', 15);
-      $this->Cell(100, 10, utf8_decode("REPORTE DE EMPLEADOS "), 0, 1, 'C', 0);
+      $this->Cell(100, 10, utf8_decode("REPORTE DE EMPLEADOS"), 0, 1, 'C', 0);
       $this->Ln(10);
 
       $this->SetFillColor(76,175,80);
@@ -45,10 +45,10 @@ class PDF extends FPDF
       $this->Cell(10, 10, utf8_decode('ID'), 1, 0, 'C', 1);
       $this->Cell(20, 10, utf8_decode('Nombre'), 1, 0, 'C', 1);
       $this->Cell(20, 10, utf8_decode('Apellido'), 1, 0, 'C', 1);
-      $this->Cell(50, 10, utf8_decode('Correo'), 1, 0, 'C', 1);
+      $this->Cell(55, 10, utf8_decode('Correo'), 1, 0, 'C', 1);
       $this->Cell(25, 10, utf8_decode('Teléfono'), 1, 0, 'C', 1);
       $this->Cell(45, 10, utf8_decode('Puesto'), 1, 0, 'C', 1);
-      $this->Cell(20, 10, utf8_decode('A / I'), 1, 1, 'C', 1);
+      $this->Cell(15, 10, utf8_decode('A / I'), 1, 1, 'C', 1);
    }
 
    function Footer()
@@ -99,18 +99,18 @@ while ($Fila = $consulta_reporte_empleados->fetch_assoc()) {
    $pdf->Cell(10, 10, utf8_decode($i), 1, 0, 'C');
    $pdf->Cell(20, 10, utf8_decode($Fila['nombre']), 1, 0, 'C');
    $pdf->Cell(20, 10, utf8_decode($Fila['apellido']), 1, 0, 'C');
-   $pdf->Cell(50, 10, utf8_decode($Fila['email']), 1, 0, 'C');
+   $pdf->Cell(55, 10, utf8_decode($Fila['email']), 1, 0, 'C');
    $pdf->Cell(25, 10, utf8_decode($Fila['telefono']), 1, 0, 'C');
    $pdf->Cell(45, 10, utf8_decode($Fila['nombre_del_puesto']), 1, 0, 'C');
 
-   $ancho_celda = 20;
+   $ancho_celda = 15;
    $alto_celda = 10; 
 
    if (!empty($nombre_archivo_completo)) {
 
       $ancho_icono = 5;
       $alto_icono = 5;
-      $margen_x = 7.5;
+      $margen_x = 5;
       $margen_y = 2.5;
 
       $pdf->Cell($ancho_celda, $alto_celda, '', 1, 0, 'C'); 

@@ -8,16 +8,18 @@ $Nombre_error = '';
 $Apellido_error = '';
 $Correo_error = '';
 $Contraseña_error = '';
+$Confirmar_contraseña_error = '';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     
     $conn = conexion();
     $errores = []; 
 
-    $Nombre = $conn->real_escape_string($_POST['nombre']);
-    $Apellido = $conn->real_escape_string($_POST['apellido']);
-    $Correo = $conn->real_escape_string($_POST['email']);
-    $Contraseña = $conn->real_escape_string($_POST['contraseña']);
+    $Nombre = $_POST['nombre'];
+    $Apellido = $_POST['apellido'];
+    $Correo = $_POST['email'];
+    $Contraseña = $_POST['contraseña'];
+    $Confirmar_contraseña = $_POST['confirmar_contraseña'];
 
     if (!preg_match("/^[a-zA-ZáéíóúÁÉÍÓÚñÑ]+$/", $Nombre) || !preg_match("/^[a-zA-ZáéíóúÁÉÍÓÚñÑ]+$/", $Apellido)) {
         $errores[] = "El nombre y el apellido solo pueden contener letras"; 
@@ -26,34 +28,56 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (!preg_match("/^\S+$/", $Contraseña)) {
         $errores[] = "La contraseña no puede contener espacios vacíos"; 
     }
-            
-    $Sql_check = "SELECT email FROM usuarios WHERE email = '$Correo'";
-    $Resultado_check = $conn->query($Sql_check);
+
+    if (strlen($Contraseña) < 8) {
+        $errores[] = "La contraseña debe tener al menos 8 caracteres";
+    }
+
+    if (!preg_match("/[A-ZÁÉÍÓÚÑ]/", $Contraseña)) {
+        $errores[] = "La contraseña debe contener al menos una letra mayúscula";
+    }
+
+    if (!preg_match("/[0-9]/", $Contraseña)) {
+        $errores[] = "La contraseña debe contener al menos un número";
+    }
+
+    if ($Contraseña !== $Confirmar_contraseña) {
+        $errores[] = "Las contraseñas no coinciden";
+    }
+
+    $Sql_check = "SELECT email FROM usuarios WHERE email = ?";
+    $stmt_check = $conn->prepare($Sql_check);
+    $stmt_check->bind_param("s", $Correo);
+    $stmt_check->execute();
+    $Resultado_check = $stmt_check->get_result();
 
     if ($Resultado_check->num_rows > 0) {
         $errores[] = "Ya existe un usuario con este correo"; 
     }
+    $stmt_check->close();
 
     if (empty($errores)) {
             
         $Nombre = ucfirst(strtolower($Nombre));
         $Apellido = ucfirst(strtolower($Apellido));
-
         $Contraseña_hashed = password_hash($Contraseña, PASSWORD_DEFAULT);
-        $Sql_insert = "INSERT INTO usuarios (nombre, apellido, email, contraseña) VALUES ('$Nombre', '$Apellido', '$Correo', '$Contraseña_hashed')";
 
-        if ($conn->query($Sql_insert) === TRUE) {
+        $sql_insert = "INSERT INTO usuarios (nombre, apellido, email, contraseña) VALUES (?, ?, ?, ?)"; 
+        $stmt_insert = $conn->prepare($sql_insert); 
+        $stmt_insert->bind_param("ssss", $Nombre, $Apellido, $Correo, $Contraseña_hashed);
+
+        if ($stmt_insert->execute()) {
             $_SESSION['mensaje_exito'] = true;
             header("Location: registro.php");
             exit;
         } else {
             $Mensaje_registro = "<div class='mensaje-error'>Registro fallido</div>";
         }
+        $stmt_insert->close();
     } else {
         $Nombre_error = $Nombre;
         $Apellido_error = $Apellido;
         $Correo_error = $Correo;
-        $Contraseña_error = $Contraseña;
 
         foreach ($errores as $error) {
             $Mensaje_registro .= "<div class='mensaje-error'>$error</div>";
@@ -84,34 +108,46 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <div class="contenedor-principal">
         <div class="registro-contenedor">
             <form class="registro-formulario" method="post">
-                <h2>Crear una cuenta</h2>
+                <h2>Creá tu cuenta</h2>
                 <?php echo $Mensaje_registro; ?>
                 <div class="formulario-grupo">
                     <label for="nombre">Nombre</label>
-                    <input type="text" name="nombre" value="<?php echo htmlspecialchars($Nombre_error); ?>" required>
+                    <input type="text" name="nombre" value="<?php echo htmlspecialchars($Nombre_error); ?>" placeholder="Tu nombre" required>
                 </div>
                 <div class="formulario-grupo">
                     <label for="apellido">Apellido</label>
-                    <input type="text" name="apellido" value="<?php echo htmlspecialchars($Apellido_error); ?>" required>
+                    <input type="text" name="apellido" value="<?php echo htmlspecialchars($Apellido_error); ?>" placeholder="Tu apellido" required>
                 </div>
                 <div class="formulario-grupo">
                     <label for="correo">Correo electrónico</label>
-                    <input type="email" name="email" value="<?php echo htmlspecialchars($Correo_error); ?>" required>
+                    <input type="email" name="email" value="<?php echo htmlspecialchars($Correo_error); ?>" placeholder="Tu@correo.com" required>
                 </div>
                 <div class="formulario-grupo">
                     <label for="contrasena">Contraseña</label>
                     <div class="contraseña-input-contenedor">
-
-                        <input type="password" name="contraseña" id="contraseñaInput" value="<?php echo htmlspecialchars($Contraseña_error); ?>" required>
-                        <span class="alternar-contraseña" onclick="togglePasswordVisibility()">
-                            <img id="ojoIcono" src="img/ojo2.png">
+                        <input type="password" name="contraseña" id="contraseñaInput" value="<?php echo htmlspecialchars($Contraseña_error); ?>" placeholder="••••••••" required>
+                        <span class="alternar-contraseña" onclick="togglePasswordVisibility('contraseñaInput', 'ojoIcono1')">
+                            <img id="ojoIcono1" src="img/ojo2.png">
                         </span>
-                        
+                    </div>
+                    <ul class="requisitos-contraseña">
+                        <li id="req-longitud">Mínimo 8 caracteres</li>
+                        <li id="req-mayuscula">Al menos una letra mayúscula</li>
+                        <li id="req-numero">Al menos un número</li>
+                    </ul>
+                </div>
+                <div class="formulario-grupo">
+                    <label for="confirmar_contraseña">Confirmar contraseña</label>
+                    <div class="contraseña-input-contenedor">
+                        <input type="password" name="confirmar_contraseña" id="confirmarContraseñaInput" value="<?php echo htmlspecialchars($Confirmar_contraseña_error); ?>" placeholder="••••••••" required>
+                        <span class="alternar-contraseña" onclick="togglePasswordVisibility('confirmarContraseñaInput', 'ojoIcono2')">
+                            <img id="ojoIcono2" src="img/ojo2.png">
+                        </span>
                     </div>
                 </div>
-                <button type="submit" class="btn-registro">Registrarse</button>
+                <button type="submit" class="btn-registro">Crear cuenta</button>
                 <p class="link">
-                    ¿Ya tienes una cuenta? <a href="index.php">Inicia sesión aquí</a>
+                    ¿Ya tienes una cuenta? <a href="index.php">Iniciar sesión aquí</a>
                 </p>
             </form>
         </div>
@@ -120,10 +156,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 </html>
 <script>
 
-    function togglePasswordVisibility() {
-
-        var campo_de_la_contraseña = document.getElementById("contraseñaInput");
-        var ojo_icono = document.getElementById("ojoIcono");
+    function togglePasswordVisibility(inputId, iconoId) {
+        var campo_de_la_contraseña = document.getElementById(inputId);
+        var ojo_icono = document.getElementById(iconoId);
 
         if (campo_de_la_contraseña.type === "password") {
             campo_de_la_contraseña.type = "text";
@@ -134,12 +169,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
     }
 
+    document.getElementById("contraseñaInput").addEventListener("input", function () {
+
+        const valor = this.value;
+        const reqLongitud  = document.getElementById("req-longitud");
+        const reqMayuscula = document.getElementById("req-mayuscula");
+        const reqNumero    = document.getElementById("req-numero");
+
+        reqLongitud.classList.toggle("cumplido", valor.length >= 8);
+        reqMayuscula.classList.toggle("cumplido", /[A-ZÁÉÍÓÚÑ]/.test(valor));
+        reqNumero.classList.toggle("cumplido", /[0-9]/.test(valor));
+
+    });
+
     <?php if (isset($_SESSION['mensaje_exito'])): ?>
         Swal.fire({
             title: "Usuario registrado exitosamente",
             icon: "success",
             timer: 2500,
             showConfirmButton: false
+        }).then(() => {
+            window.location.href = "index.php";
         });
         <?php unset($_SESSION['mensaje_exito']); ?>
     <?php endif; ?>

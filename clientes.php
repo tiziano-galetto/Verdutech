@@ -9,9 +9,6 @@ if (!isset($_SESSION['nombre']) || !isset($_SESSION['apellido'])) {
 }
 
 $conn = conexion();
-if (!$conn) {
-    die("Error de conexión a la base de datos: " . mysqli_connect_error());
-}
 
 $Id_a_editar = '';
 $Nombre_a_editar = '';
@@ -26,6 +23,7 @@ $Nombre_busqueda = '';
 $Apellido_busqueda = '';
 $Correo_busqueda = '';
 $Telefono_busqueda = '';
+$Direccion_busqueda = '';
 $Deuda_busqueda = '';
 $Error_correo = '';
 $Error_telefono = '';
@@ -47,6 +45,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             $Nombre = ucfirst(strtolower($Nombre));
             $Apellido = ucfirst(strtolower($Apellido));
+            $Direccion = ucfirst(strtolower($Direccion));
 
             if (!preg_match("/^[a-zA-ZáéíóúÁÉÍÓÚñÑ]+$/", $Nombre) || !preg_match("/^[a-zA-ZáéíóúÁÉÍÓÚñÑ]+$/", $Apellido)) {
                 $Error_nombre_apellido = "El nombre y el apellido solo pueden contener letras";
@@ -60,6 +59,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             if (!preg_match("/^\d+$/", $Telefono)) {
                  $Error_telefono = "El teléfono solo pueden contener números";
+            } elseif (strlen($Telefono) !== 10) {
+                 $Error_telefono = "El teléfono debe tener exactamente 10 números";
             }
 
             $Sql_verificar_correo = "SELECT id_clientes FROM clientes WHERE email = ?";
@@ -132,6 +133,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             $Nombre = ucfirst(strtolower($Nombre));
             $Apellido = ucfirst(strtolower($Apellido));
+            $Direccion = ucfirst(strtolower($Direccion));
 
             if (!preg_match("/^[a-zA-ZáéíóúÁÉÍÓÚñÑ]+$/", $Nombre) || !preg_match("/^[a-zA-ZáéíóúÁÉÍÓÚñÑ]+$/", $Apellido)) {
                 $Error_nombre_apellido = "El nombre y el apellido solo pueden contener letras";
@@ -145,15 +147,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             if (!preg_match("/^\d+$/", $Telefono)) {
                  $Error_telefono = "El teléfono solo pueden contener números";
+            } elseif (strlen($Telefono) !== 10) {
+                 $Error_telefono = "El teléfono debe tener exactamente 10 números";
             }
             
             $Sql_cliente_actual = "SELECT email, telefono FROM clientes WHERE id_clientes = ?";
-            $Sql_cliente_actual = $conn->prepare($Sql_cliente_actual);
-            $Sql_cliente_actual->bind_param("i", $Id_a_editar);
-            $Sql_cliente_actual->execute();
-            $Resultado_actual = $Sql_cliente_actual->get_result();
+            $Stmt_cliente_actual = $conn->prepare($Sql_cliente_actual);
+            $Stmt_cliente_actual->bind_param("i", $Id_a_editar);
+            $Stmt_cliente_actual->execute();
+            $Resultado_actual = $Stmt_cliente_actual->get_result();
             $Cliente_actual = $Resultado_actual->fetch_assoc();
-            $Sql_cliente_actual->close();
+            $Stmt_cliente_actual->close();
 
             $Error_correo_existe = false;
             $Error_telefono_existe = false;
@@ -296,19 +300,45 @@ if (is_numeric($Deuda_busqueda)) {
     $Es_busqueda = true;
 }
 
+$Clientes_por_pagina = 5;
+$Pagina_actual = isset($_GET['pagina']) ? max(1, intval($_GET['pagina'])) : 1;
+$Offset = ($Pagina_actual - 1) * $Clientes_por_pagina;
+
 if (!empty($Condiciones)) {
-    $Sql_buscar = "SELECT * FROM clientes WHERE " . implode(" AND ", $Condiciones);
+
+    $Sql_count = "SELECT COUNT(*) as total FROM clientes WHERE " . implode(" AND ", $Condiciones);
+    $Stmt_count = $conn->prepare($Sql_count);
+    if ($Stmt_count) {
+        $Stmt_count->bind_param($Tipos, ...$Parametros);
+        $Stmt_count->execute();
+        $Total_clientes = $Stmt_count->get_result()->fetch_assoc()['total'];
+        $Stmt_count->close();
+    }
+
+    $Sql_buscar = "SELECT * FROM clientes WHERE " . implode(" AND ", $Condiciones) . " LIMIT ? OFFSET ?";
     $Stmt_busqueda = $conn->prepare($Sql_buscar);
     if ($Stmt_busqueda) {
-        $Stmt_busqueda->bind_param($Tipos, ...$Parametros);
+        $Tipos_pag = $Tipos . 'ii';
+        $Parametros_pag = array_merge($Parametros, [$Clientes_por_pagina, $Offset]);
+        $Stmt_busqueda->bind_param($Tipos_pag, ...$Parametros_pag);
         $Stmt_busqueda->execute();
         $Resultado = $Stmt_busqueda->get_result();
         $Stmt_busqueda->close();
     }
 } else {
-    $Sql = "SELECT * FROM clientes ORDER BY id_clientes ASC";
-    $Resultado = $conn->query($Sql);
+
+    $Resultado_count = $conn->query("SELECT COUNT(*) as total FROM clientes");
+    $Total_clientes = $Resultado_count->fetch_assoc()['total'];
+
+    $Sql = "SELECT * FROM clientes ORDER BY id_clientes ASC LIMIT ? OFFSET ?";
+    $Stmt_pag = $conn->prepare($Sql);
+    $Stmt_pag->bind_param("ii", $Clientes_por_pagina, $Offset);
+    $Stmt_pag->execute();
+    $Resultado = $Stmt_pag->get_result();
+    $Stmt_pag->close();
 }
+
+$Total_paginas = ceil($Total_clientes / $Clientes_por_pagina);
 
 ?>
 <!DOCTYPE html>
@@ -370,27 +400,27 @@ if (!empty($Condiciones)) {
                     
                     <div class="contenedor-de-campos">
                         <div class="formulario-grupo">
-                            <label>Nombre</label>
+                            <label>Nombre <span class="requerido">*</span></label>
                             <input type="text" name="nombre" id="nombre" value="<?php echo htmlspecialchars($Nombre_a_editar); ?>" required>
                         </div>
                         <div class="formulario-grupo">
-                            <label>Apellido</label>
+                            <label>Apellido <span class="requerido">*</span></label>
                             <input type="text" name="apellido" id="apellido" value="<?php echo htmlspecialchars($Apellido_a_editar); ?>" required>
                         </div>
                         <div class="formulario-grupo">
-                            <label>Correo</label>
+                            <label>Correo <span class="requerido">*</span></label>
                             <input type="email" name="correo" id="correo" value="<?php echo htmlspecialchars($Correo_a_editar); ?>" required>
                         </div>
                         <div class="formulario-grupo">
-                            <label>Teléfono</label>
+                            <label>Teléfono <span class="requerido">*</span></label>
                             <input type="number" name="telefono" id="telefono" value="<?php echo htmlspecialchars($Telefono_a_editar); ?>" required>
                         </div>
                         <div class="formulario-grupo">
-                            <label>Dirección</label>
+                            <label>Dirección <span class="requerido">*</span></label>
                             <input type="text" name="direccion" id="direccion" value="<?php echo htmlspecialchars($Direccion_a_editar); ?>" required>
                         </div>
                         <div class="formulario-grupo">
-                            <label>Deuda</label>
+                            <label>Deuda a cobrar <span class="requerido">*</span></label>
                             <input type="number" name="deuda" id="deuda" step="0.01" value="<?php echo htmlspecialchars($Deuda_a_editar); ?>" required>
                         </div>
                     </div>
@@ -429,7 +459,7 @@ if (!empty($Condiciones)) {
                                 <th>Correo</th>
                                 <th>Teléfono</th>
                                 <th>Dirección</th>
-                                <th>Deuda</th>
+                                <th>Deuda a cobrar</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
@@ -439,9 +469,9 @@ if (!empty($Condiciones)) {
                                 while ($Fila = $Resultado->fetch_assoc()) {
                                     $Deuda = floatval($Fila['deuda']);
                                     $Clase_deuda = '';
-                                    if ($Deuda > 25000) {
+                                    if ($Deuda > 50000) {
                                         $Clase_deuda = 'deuda-alta';
-                                    } elseif ($Deuda > 15000) {
+                                    } elseif ($Deuda > 25000) {
                                         $Clase_deuda = 'deuda-media';
                                     } else {
                                         $Clase_deuda = 'deuda-baja';
@@ -451,7 +481,16 @@ if (!empty($Condiciones)) {
                                     echo "<td>" . htmlspecialchars($Fila['nombre']) . "</td>";
                                     echo "<td>" . htmlspecialchars($Fila['apellido']) . "</td>";
                                     echo "<td><a href='https://mail.google.com/mail/?view=cm&fs=1&to=" . htmlspecialchars($Fila['email']) . "'target='_blank' style='color: #000000; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 5px;'><img src='img/gmail.png' style='width: 15px; height: 15px;'>" . htmlspecialchars($Fila['email']) . "</a></td>";
-                                    echo "<td><a href='https://wa.me/549" . htmlspecialchars($Fila['telefono']) . "'target='_blank' style='color: #000000; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 5px;'><img src='img/whatsapp.png' style='width: 15px; height: 15px;'>" . htmlspecialchars($Fila['telefono']) . "</a></td>";
+                                    $Telefono_original = $Fila['telefono'];
+                                    if (strlen($Telefono_original) === 10) {
+                                        $Cod_area = substr($Telefono_original, 0, 3);
+                                        $Primera_parte = substr($Telefono_original, 3, 3);
+                                        $Segunda_parte = substr($Telefono_original, 6, 4);
+                                        $Telefono_formateado = "+54 9 " . $Cod_area . " " . $Primera_parte . "-" . $Segunda_parte;
+                                    } else {
+                                        $Telefono_formateado = $Telefono_original; 
+                                    }
+                                    echo "<td><a href='https://wa.me/549" . htmlspecialchars($Telefono_original) . "?text=" . urlencode("¡Holaa! " . $Fila['nombre'] . " " . $Fila['apellido'] . ", te queremos informar que tenés una deuda de $" . $Fila['deuda']) . "'target='_blank' style='color: #000000; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 5px;'><img src='img/whatsapp.png' style='width: 15px; height: 15px;'>" . htmlspecialchars($Telefono_formateado) . "</a></td>";
                                     echo "<td><a href='https://www.google.com/maps/search/?api=1&query=" . urlencode($Fila['direccion']) . "' target='_blank' style='color: #000000; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 5px;'><img src='img/marcador.png' style='width: 15px; height: 15px;'>" . htmlspecialchars($Fila['direccion']) . "</a></td>";
                                     $Deuda_formateada = number_format(
                                         floatval($Fila['deuda']),
@@ -482,6 +521,34 @@ if (!empty($Condiciones)) {
                         </tbody>
                     </table>
                 </div>
+                <?php if ($Total_paginas > 1): ?>
+                <div class="paginador-contenedor">
+                    <?php
+                    $Params_paginador = [];
+                    if (!empty($Nombre_busqueda))    $Params_paginador[] = "nombre="    . urlencode($Nombre_busqueda);
+                    if (!empty($Apellido_busqueda))  $Params_paginador[] = "apellido="  . urlencode($Apellido_busqueda);
+                    if (!empty($Correo_busqueda))    $Params_paginador[] = "correo="    . urlencode($Correo_busqueda);
+                    if (!empty($Telefono_busqueda))  $Params_paginador[] = "telefono="  . urlencode($Telefono_busqueda);
+                    if (!empty($Direccion_busqueda)) $Params_paginador[] = "direccion=" . urlencode($Direccion_busqueda);
+                    if (is_numeric($Deuda_busqueda)) $Params_paginador[] = "deuda="     . urlencode($Deuda_busqueda);
+                    $Query_base = count($Params_paginador) ? '&' . implode('&', $Params_paginador) : '';
+
+                    if ($Pagina_actual > 1): ?>
+                        <a href="clientes.php?pagina=<?php echo $Pagina_actual - 1 . $Query_base; ?>" class="btn-paginador flecha">⟪ Anterior</a>
+                    <?php endif;
+
+                    for ($i = 1; $i <= $Total_paginas; $i++): ?>
+                        <a href="clientes.php?pagina=<?php echo $i . $Query_base; ?>"
+                           class="btn-paginador <?php echo ($i === $Pagina_actual) ? 'activo' : ''; ?>">
+                            <?php echo $i; ?>
+                        </a>
+                    <?php endfor;
+
+                    if ($Pagina_actual < $Total_paginas): ?>
+                        <a href="clientes.php?pagina=<?php echo $Pagina_actual + 1 . $Query_base; ?>" class="btn-paginador flecha">Siguiente ⟫</a>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
             </div>
         </main>
     </div>

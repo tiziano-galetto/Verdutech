@@ -35,9 +35,10 @@ class PDF extends FPDF
       $this->SetTextColor(76,175,80);
       $this->Cell(50);
       $this->SetFont('Arial', 'B', 15);
-      $this->Cell(100, 10, utf8_decode("REPORTE POR BUSQUEDA DE CLIENTES "), 0, 1, 'C', 0);
+      $this->Cell(100, 10, utf8_decode("REPORTE POR BUSQUEDA DE CLIENTES"), 0, 1, 'C', 0);
       $this->Ln(10);
 
+      $this->SetX(5);
       $this->SetFillColor(76,175,80);
       $this->SetTextColor(255, 255, 255);
       $this->SetDrawColor(163, 163, 163);
@@ -47,7 +48,7 @@ class PDF extends FPDF
       $this->Cell(20, 10, utf8_decode('Apellido'), 1, 0, 'C', 1);
       $this->Cell(50, 10, utf8_decode('Correo'), 1, 0, 'C', 1);
       $this->Cell(25, 10, utf8_decode('Teléfono'), 1, 0, 'C', 1);
-      $this->Cell(40, 10, utf8_decode('Dirección'), 1, 0, 'C', 1);
+      $this->Cell(50, 10, utf8_decode('Dirección'), 1, 0, 'C', 1);
       $this->Cell(25, 10, utf8_decode('Deuda'), 1, 1, 'C', 1);
    }
 
@@ -146,7 +147,7 @@ if (!empty($Condiciones)) {
 if ($consulta_reporte_clientes && $consulta_reporte_clientes->num_rows > 0) {
     while ($datos_reporte = $consulta_reporte_clientes->fetch_object()) {      
         $i = $i + 1;
-
+        $pdf->SetX(5);
         $Deuda_formateada = number_format(
             floatval($datos_reporte->deuda),
             2,
@@ -161,7 +162,7 @@ if ($consulta_reporte_clientes && $consulta_reporte_clientes->num_rows > 0) {
         $pdf->Cell(20, 10, utf8_decode($datos_reporte->apellido), 1, 0, 'C', 0);
         $pdf->Cell(50, 10, utf8_decode($datos_reporte->email), 1, 0, 'C', 0);
         $pdf->Cell(25, 10, utf8_decode($datos_reporte->telefono), 1, 0, 'C', 0);
-        $pdf->Cell(40, 10, utf8_decode($datos_reporte->direccion), 1, 0, 'C', 0);
+        $pdf->Cell(50, 10, utf8_decode($datos_reporte->direccion), 1, 0, 'C', 0);
         $pdf->Cell(25, 10, $Deuda_con_simbolo, 1, 1, 'C', 0);
     }
 } else {

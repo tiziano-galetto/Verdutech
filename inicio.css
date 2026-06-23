@@ -1,6 +1,14 @@
 html, body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-image: linear-gradient(to bottom, #243949 0%, #517fa4 100%);
+            background-color: #000;
+            background-image: radial-gradient(
+                ellipse at 50% 50%,
+                rgba(76, 175, 80, 0.50) 25%,
+                rgba(76, 175, 80, 0.25) 50%,
+                transparent 100%
+            );
+            background-size: 100% 100%;
+            background-position: center;
             margin: 0;
             padding: 0;
             height: 100vh;
@@ -20,6 +28,7 @@ html, body {
             background-color: #4CAF50;
             color: white;
             min-height: 50px;
+            border-bottom: 2px solid white;
         }
 
         .logo-contenedor {

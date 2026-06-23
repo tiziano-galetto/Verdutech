@@ -1,6 +1,7 @@
 <?php
 
 session_start();
+date_default_timezone_set('America/Argentina/Buenos_Aires');
 include 'funcion.php';
 
 if (!isset($_SESSION['nombre']) || !isset($_SESSION['apellido'])) {
@@ -9,9 +10,6 @@ if (!isset($_SESSION['nombre']) || !isset($_SESSION['apellido'])) {
 }
 
 $conn = conexion();
-if (!$conn) {
-    die("Error de conexiÃ³n a la base de datos: " . mysqli_connect_error());
-}
 
 $Sql_empleados = "SELECT id_empleados, nombre, apellido FROM empleados ORDER BY id_empleados ASC";
 $Resultado_empleados = $conn->query($Sql_empleados);
@@ -43,9 +41,10 @@ if ($Resultado_metodo_de_pago) {
     }
 }
 
-$Sql_productos = "SELECT p.id_productos, p.nombre_del_producto, p.precio, p.id_tipo_productos, tp.nombre_tipo_productos 
+$Sql_productos = "SELECT p.id_productos, p.img_productos, p.nombre_del_producto, p.precio, p.stock, p.id_tipo_productos, tp.nombre_tipo_productos,  p.id_tipo_unidades, tu.nombre_tipo_unidades
                   FROM productos p
                   JOIN tipo_productos tp ON p.id_tipo_productos = tp.id_tipo_productos
+                  JOIN tipo_unidades tu ON p.id_tipo_unidades = tu.id_tipo_unidades
                   ORDER BY p.id_productos ASC";
 $Resultado_productos = $conn->query($Sql_productos);
 $Productos_disponible = [];
@@ -117,6 +116,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             if ($Stmt) {
                 $Stmt->bind_param("siiisid", $Fecha, $Vendedor, $Comprador, $Metodo_de_pago, $Listado_de_productos, $Estado, $Total_venta_formateado);
                 if ($Stmt->execute()) {
+                    if ($Estado == 1 || $Estado == 2) {
+                        foreach ($Listado_productos_array as $Item) {
+                            $Id_productos = intval($Item['id']);
+                            $Cantidad    = intval($Item['cantidad']);
+                            $Sql_stock = "UPDATE productos SET stock = stock - ? WHERE id_productos = ?";
+                            $Stmt_stock = $conn->prepare($Sql_stock);
+                            $Stmt_stock->bind_param("ii", $Cantidad, $Id_productos);
+                            $Stmt_stock->execute();
+                            $Stmt_stock->close();
+                        }
+                    }
                     $_SESSION['mensaje_exito'] = true;
                     header("Location: ventas.php");
                     exit;
@@ -127,6 +137,32 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         case 'eliminar':
             $Id_a_eliminar = intval($_POST['eliminar_id']);
+
+            $Sql_obtener = "SELECT listado_de_productos, id_estado FROM ventas WHERE id_ventas = ?";
+            $Stmt_obtener = $conn->prepare($Sql_obtener);
+            if ($Stmt_obtener) {
+                $Stmt_obtener->bind_param("i", $Id_a_eliminar);
+                $Stmt_obtener->execute();
+                $Stmt_obtener->bind_result($Listado_productos_json, $Estado);
+                $Stmt_obtener->fetch();
+                $Stmt_obtener->close();
+
+                if ($Estado == 1 || $Estado == 2) {
+                    $Listado_productos_array = json_decode($Listado_productos_json, true);
+                    if (is_array($Listado_productos_array)) {
+                        foreach ($Listado_productos_array as $Item) {
+                            $Id_productos = intval($Item['id']);
+                            $Cantidad    = intval($Item['cantidad']);
+                            $Sql_stock = "UPDATE productos SET stock = stock + ? WHERE id_productos = ?";
+                            $Stmt_stock = $conn->prepare($Sql_stock);
+                            $Stmt_stock->bind_param("ii", $Cantidad, $Id_productos);
+                            $Stmt_stock->execute();
+                            $Stmt_stock->close();
+                        }
+                    }
+                }
+            }
+
             $Sql_eliminar = "DELETE FROM ventas WHERE id_ventas = ?";
             $Stmt_eliminar = $conn->prepare($Sql_eliminar);
             if ($Stmt_eliminar) {
@@ -246,19 +282,45 @@ if (is_numeric($Estado_busqueda)) {
     $Es_busqueda = true;
 }
 
+$Ventas_por_pagina = 5;
+$Pagina_actual = isset($_GET['pagina']) ? max(1, intval($_GET['pagina'])) : 1;
+$Offset = ($Pagina_actual - 1) * $Ventas_por_pagina;
+
 if (!empty($Condiciones)) {
-    $Sql_buscar = "SELECT * FROM ventas WHERE " . implode(" AND ", $Condiciones);
+
+    $Sql_count = "SELECT COUNT(*) as total FROM ventas WHERE " . implode(" AND ", $Condiciones);
+    $Stmt_count = $conn->prepare($Sql_count);
+    if ($Stmt_count) {
+        $Stmt_count->bind_param($Tipos, ...$Parametros);
+        $Stmt_count->execute();
+        $Total_ventas = $Stmt_count->get_result()->fetch_assoc()['total'];
+        $Stmt_count->close();
+    }
+
+    $Sql_buscar = "SELECT * FROM ventas WHERE " . implode(" AND ", $Condiciones) . " LIMIT ? OFFSET ?";
     $Stmt_busqueda = $conn->prepare($Sql_buscar);
     if ($Stmt_busqueda) {
-        $Stmt_busqueda->bind_param($Tipos, ...$Parametros);
+        $Tipos_pag = $Tipos . 'ii';
+        $Parametros_pag = array_merge($Parametros, [$Ventas_por_pagina, $Offset]);
+        $Stmt_busqueda->bind_param($Tipos_pag, ...$Parametros_pag);
         $Stmt_busqueda->execute();
         $Resultado = $Stmt_busqueda->get_result();
         $Stmt_busqueda->close();
     }
 } else {
-    $Sql = "SELECT * FROM ventas ORDER BY id_ventas ASC";
-    $Resultado = $conn->query($Sql);
+    
+    $Resultado_count = $conn->query("SELECT COUNT(*) as total FROM ventas");
+    $Total_ventas = $Resultado_count->fetch_assoc()['total'];
+
+    $Sql = "SELECT * FROM ventas ORDER BY id_ventas ASC LIMIT ? OFFSET ?";
+    $Stmt_pag = $conn->prepare($Sql);
+    $Stmt_pag->bind_param("ii", $Ventas_por_pagina, $Offset);
+    $Stmt_pag->execute();
+    $Resultado = $Stmt_pag->get_result();
+    $Stmt_pag->close();
 }
+
+$Total_paginas = ceil($Total_ventas / $Ventas_por_pagina);
 
 ?>
 <!DOCTYPE html>
@@ -269,6 +331,7 @@ if (!empty($Condiciones)) {
     <title>Gestión de ventas</title>
     <link rel="stylesheet" href="ventas.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
 
@@ -292,11 +355,11 @@ if (!empty($Condiciones)) {
                     
                     <div class="contenedor-de-campos">
                         <div class="formulario-grupo">
-                            <label>Fecha</label>
-                            <input type="date" name="fecha" id="fecha" value="<?php echo htmlspecialchars($Fecha_a_editar); ?>" required>
+                            <label>Fecha <span class="requerido">*</span></label>
+                            <input type="datetime-local" name="fecha" id="fecha" value="<?php echo htmlspecialchars($Fecha_a_editar); ?>" min="<?php echo date('Y-m-d') ?>T00:00" required>
                         </div>
                         <div class="formulario-grupo">
-                            <label>Vendedor</label>
+                            <label>Vendedor <span class="requerido">*</span></label>
                             <select 
                                 name="empleado" 
                                 id="empleado" 
@@ -316,7 +379,7 @@ if (!empty($Condiciones)) {
                             </select>
                         </div>
                         <div class="formulario-grupo">
-                            <label>Comprador</label>
+                            <label>Comprador <span class="requerido">*</span></label>
                             <select 
                                 name="cliente" 
                                 id="cliente" 
@@ -336,7 +399,7 @@ if (!empty($Condiciones)) {
                             </select>
                         </div>
                         <div class="formulario-grupo">
-                            <label>Método de pago</label>
+                            <label>Método de pago <span class="requerido">*</span></label>
                             <select 
                                 name="metodo_de_pago" 
                                 id="metodo_de_pago" 
@@ -357,7 +420,7 @@ if (!empty($Condiciones)) {
                         </div>
                         
                         <div class="formulario-grupo">
-                            <label>Producto</label>
+                            <label>Producto <span class="requerido">*</span></label>
                             <select id="select_producto" class="input-estilo">
                                 <option value="" disabled selected>-- Seleccionar un producto --</option>
         
@@ -365,17 +428,17 @@ if (!empty($Condiciones)) {
                                     <option 
                                         value="<?= htmlspecialchars($Producto['id_productos']) ?>"
                                     >
-                                        <?= htmlspecialchars($Producto['nombre_del_producto']) ?> (Precio: $<?= htmlspecialchars(number_format(floatval($Producto['precio']), 2, ',', '.')) ?>)
+                                        <?= htmlspecialchars($Producto['nombre_del_producto']) ?> (Precio: $<?= htmlspecialchars(number_format(floatval($Producto['precio']), 2, ',', '.')) ?> x <?= htmlspecialchars($Producto['nombre_tipo_unidades']) ?>) (Stock: <?= htmlspecialchars(intval($Producto['stock'])) ?>)
                                     </option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
                         <div class="formulario-grupo">
-                            <label>Cantidad</label>
+                            <label>Cantidad <span class="requerido">*</span></label>
                             <input type="number" id="cantidad_producto" value="1" min="1" class="input-estilo">
                         </div>
                         <div class="formulario-grupo">
-                            <label>Estado</label>
+                            <label>Estado <span class="requerido">*</span></label>
                             <select 
                                 name="estado" 
                                 id="estado" 
@@ -406,6 +469,7 @@ if (!empty($Condiciones)) {
                         <table class="datos-tabla" border="1">
                             <thead>
                                 <tr>
+                                    <th>Imagen</th>
                                     <th>Producto</th>
                                     <th>Precio unitario</th>
                                     <th>Cantidad</th>
@@ -417,7 +481,7 @@ if (!empty($Condiciones)) {
                             <tbody id="tabla_productos_body">
                                 </tbody>
                             <tfoot>
-                                <td colspan="6" style="text-align: center;">
+                                <td colspan="7" style="text-align: center;">
                                     <strong>Sub total:</strong> <span id="total_venta_display">$ 0,00</span>
                                 </td>
                             </tfoot>
@@ -429,7 +493,7 @@ if (!empty($Condiciones)) {
                             <button type="submit" class="btn-action"><img src="img/Aceptar.png" class="iconos-principales">Guardar cambios</button>
                             <a href="ventas.php" class="btn-action" style="text-decoration: none"><img src="img/Cancelar.png" class="iconos-principales">Cancelar edición</a>
                         <?php elseif ($Es_busqueda):
-                            $Url_busqueda = "fpdf/ReporteBusquedaClientes.php?";
+                            $Url_busqueda = "fpdf/ReporteBusquedaVentas.php?";
                             $Parametros = [];
                             if (!empty($Fecha_busqueda)) { $Parametros[] = "fecha=" . urlencode($Fecha_busqueda); }
                             if (is_numeric($Vendedor_busqueda)) { $Parametros[] = "vendedor=" . urlencode($Vendedor_busqueda); }
@@ -444,7 +508,7 @@ if (!empty($Condiciones)) {
                         <?php else: ?>
                             <button type="submit" class="btn-action"><img src="img/Agregar.png" class="iconos-principales">Agregar</button>
                             <button type="submit" class="btn-action" style="text-decoration: none" onclick="return BuscarVentas()"><img src="img/Buscar.png" class="iconos-principales">Buscar</button>
-                            <a href="fpdf/ReporteClientes.php" target="_blank" style="text-decoration: none" class="btn-action"><img src="img/Imprimir.png" class="iconos-principales">Imprimir</a>
+                            <a href="fpdf/ReporteVentas.php" target="_blank" style="text-decoration: none" class="btn-action"><img src="img/Imprimir.png" class="iconos-principales">Imprimir</a>
                         <?php endif; ?>
                     </div>
                 </form>
@@ -517,10 +581,13 @@ if (!empty($Condiciones)) {
                                             
                                             if (strcasecmp($nombre_estado_mostrar, 'Cancelada') === 0) {
                                                 $clase_estado = 'estado-cancelado';
+                                                $icono_estado = '<i class="fa-regular fa-circle-xmark"></i>';
                                             } elseif (strcasecmp($nombre_estado_mostrar, 'Pendiente') === 0) {
                                                 $clase_estado = 'estado-pendiente';
+                                                $icono_estado = '<i class="fa-regular fa-clock"></i>';
                                             } elseif (strcasecmp($nombre_estado_mostrar, 'Cobrada') === 0) {
                                                 $clase_estado = 'estado-cobrado';
+                                                $icono_estado = '<i class="fa-regular fa-circle-check"></i>';
                                             }
                                             break;
                                         }
@@ -539,13 +606,15 @@ if (!empty($Condiciones)) {
                                         '.'
                                     );
                                     echo "<td>$ " . $Total_formateado . "</td>";
-                                    echo "<td><span class='" . $clase_estado . "'>" . htmlspecialchars($nombre_estado_mostrar) . "</span></td>";
+                                    echo "<td><span class='" . $clase_estado . "'>" . $icono_estado . " " . htmlspecialchars($nombre_estado_mostrar) . "</span></td>";
                                     echo "<td>";
                                     echo "<form method='GET' style='display:inline;'>";
                                     echo "<input type='hidden' name='action' value='modo_de_edicion'>";
                                     echo "<input type='hidden' name='id_ventas' value='" . htmlspecialchars($Fila['id_ventas']) . "'>";
                                     echo "<button type='submit' class='btn-tabla-action btn-editar'><img src='img/Editar.png' class='iconos-secundarios'>Editar</button>";
                                     echo "</form>";
+
+                                    echo "<a href='fpdf/Factura.php' target='_blank' class='btn-tabla-action btn-descargar'><img src='img/Descargar.png' class='iconos-secundarios'>Factura</a>";
                                     
                                     echo "<form method='POST' style='display:inline;' onsubmit='return confirmarEliminar(event)'>";
                                     echo "<input type='hidden' name='action' value='eliminar'>";
@@ -562,6 +631,34 @@ if (!empty($Condiciones)) {
                         </tbody>
                     </table>
                 </div>
+                <?php if ($Total_paginas > 1): ?>
+                <div class="paginador-contenedor">
+                    <?php
+                    $Params_paginador = [];
+                    if (!empty($Fecha_busqueda)) { $Params_paginador[] = "fecha=" . urlencode($Fecha_busqueda); }
+                    if (is_numeric($Vendedor_busqueda)) { $Params_paginador[] = "vendedor=" . urlencode($Vendedor_busqueda); }
+                    if (is_numeric($Comprador_busqueda)) { $Params_paginador[] = "comprador=" . urlencode($Comprador_busqueda); }
+                    if (is_numeric($Metodo_de_pago_busqueda)) { $Params_paginador[] = "metodo_de_pago=" . urlencode($Metodo_de_pago_busqueda); }
+                    if (is_numeric($Estado_busqueda)) { $Params_paginador[] = "estado=" . urlencode($Estado_busqueda); }
+                    if (is_numeric($Total_busqueda)) { $Params_paginador[] = "total=" . urlencode($Total_busqueda); }
+                    $Query_base = count($Params_paginador) ? '&' . implode('&', $Params_paginador) : '';
+
+                    if ($Pagina_actual > 1): ?>
+                        <a href="ventas.php?pagina=<?php echo $Pagina_actual - 1 . $Query_base; ?>" class="btn-paginador flecha">⟪ Anterior</a>
+                    <?php endif;
+
+                    for ($i = 1; $i <= $Total_paginas; $i++): ?>
+                        <a href="ventas.php?pagina=<?php echo $i . $Query_base; ?>"
+                           class="btn-paginador <?php echo ($i === $Pagina_actual) ? 'activo' : ''; ?>">
+                            <?php echo $i; ?>
+                        </a>
+                    <?php endfor;
+
+                    if ($Pagina_actual < $Total_paginas): ?>
+                        <a href="ventas.php?pagina=<?php echo $Pagina_actual + 1 . $Query_base; ?>" class="btn-paginador flecha">Siguiente ⟫</a>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
             </div>
         </main>
     </div>
@@ -592,7 +689,7 @@ if (!empty($Condiciones)) {
             let totalVenta = 0.00;
 
             if (productosEnVenta.length === 0) {
-                tbody.innerHTML = `<tr><td colspan='6' style='text-align:center;'>No se han agregado productos a la venta</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan='7' style='text-align:center;'>No se han agregado productos a la venta</td></tr>`;
             } else {
                 productosEnVenta.forEach((item, index) => {
                     const producto = productosMap[item.id];
@@ -604,6 +701,7 @@ if (!empty($Condiciones)) {
 
                         const newRow = tbody.insertRow();
                         newRow.innerHTML = `
+                            <td><img src="${producto.img_productos}" alt="Imagen" style="width:50px;height:50px;object-fit:cover;border-radius:5px;"></td>
                             <td>${producto.nombre_del_producto}</td>
                             <td>$ ${precioUnitario.toFixed(2).replace('.', ',')}</td>
                             <td>${cantidad}</td>
@@ -627,7 +725,7 @@ if (!empty($Condiciones)) {
             const cantidad = parseInt(cantidadInput.value);
 
             if (!productoId) {
-                alert("Por favor, seleccione un producto.");
+                alert("Por favor, seleccione un producto");
                 return;
             }
             if (isNaN(cantidad) || cantidad < 1) {

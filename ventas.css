@@ -1,6 +1,14 @@
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-image: linear-gradient(to bottom, #243949 0%, #517fa4 100%);
+    background-color: #000;
+    background-image: radial-gradient(
+        ellipse at 50% 50%,
+        rgba(76, 175, 80, 0.50) 25%,
+        rgba(76, 175, 80, 0.25) 50%,
+        transparent 100%
+    );
+    background-size: 150% 150%;
+    background-position: center;
     margin: 0;
     padding: 0;
     min-height: 100vh;
@@ -19,6 +27,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    border-bottom: 2px solid white;
 }
 
 .logo-contenedor {
@@ -205,6 +214,7 @@ body {
     color: white;
     font-size: 15px;
     display: inline-flex;
+    text-decoration: none;
     align-items: center;
     gap: 5px;
     transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
@@ -212,11 +222,16 @@ body {
 
 .btn-editar {
     background-color: #2196f3;
-    margin-right: 5px;
 }
 
 .btn-eliminar {
     background-color: #f44336;
+}
+
+.btn-descargar {
+   background-color: #ffc107;
+   margin-right: 5px;
+   margin-left: 5px;
 }
 
 .btn-editar:hover {
@@ -229,6 +244,12 @@ body {
     transform: translateY(-2px);
     box-shadow: 0 2.5px 5px rgba(0, 0, 0);
     background-color: #d32f2f;
+}
+
+.btn-descargar:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 2.5px 5px rgba(0, 0, 0);
+    background-color: #e0a800;
 }
 
 .mensaje_de_error {
@@ -287,4 +308,47 @@ body {
     width: 16px;
     height: 16px;
     filter: invert(100%);
+}
+
+.paginador-contenedor {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    padding: 10px;
+}
+
+.btn-paginador {
+    background-color: white;
+    color: #4CAF50;
+    border: 1px solid #4CAF50;
+    padding: 10px 15px;
+    border-radius: 5px;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+}
+
+.btn-paginador:hover {
+    background-color: #45a049;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 10px rgba(0, 0, 0);
+}
+
+.btn-paginador.activo {
+    background-color: #4CAF50;
+    color: white;
+    cursor: default;
+    pointer-events: none;
+}
+
+.btn-paginador.flecha {
+    font-weight: bold;
+}
+
+.requerido {
+    color: #f44336;
 }
