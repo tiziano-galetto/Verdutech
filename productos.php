@@ -75,10 +75,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             $Nombre = ucfirst(strtolower($Nombre));
 
+            $Sql_verificar_nombre = "SELECT id_productos FROM productos WHERE nombre_del_producto = ?";
+            $Stmt_verificar_nombre = $conn->prepare($Sql_verificar_nombre);
+            $Stmt_verificar_nombre->bind_param("s", $Nombre);
+            $Stmt_verificar_nombre->execute();
+            $Resultado_nombre = $Stmt_verificar_nombre->get_result();
+
+            $Error_nombre_existe = ($Resultado_nombre->num_rows > 0);
+
             if (empty(trim($Nombre))) {
                 $Error_nombre = "El nombre no puede estar vacío";
             } else if (!preg_match("/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/", $Nombre)) {
                 $Error_nombre = "El nombre solo puede contener letras y espacios";
+            } else if ($Error_nombre_existe) {
+                $Error_nombre = "Ya existe un producto con este nombre";
             }
 
             if (empty($Tipo_productos) || !is_numeric($Tipo_productos)) {
@@ -218,10 +228,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             $Nombre = ucfirst(strtolower($Nombre));
 
+            $Sql_verificar_nombre = "SELECT id_productos FROM productos WHERE nombre_del_producto = ?";
+            $Stmt_verificar_nombre = $conn->prepare($Sql_verificar_nombre);
+            $Stmt_verificar_nombre->bind_param("s", $Nombre);
+            $Stmt_verificar_nombre->execute();
+            $Resultado_nombre = $Stmt_verificar_nombre->get_result();
+
+            $Error_nombre_existe = ($Resultado_nombre->num_rows > 0);
+
             if (empty(trim($Nombre))) {
                 $Error_nombre = "El nombre no puede estar vacío";
             } else if (!preg_match("/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/", $Nombre)) {
                 $Error_nombre = "El nombre solo puede contener letras y espacios";
+            } else if ($Error_nombre_existe) {
+                $Error_nombre = "Ya existe un producto con este nombre";
             }
  
             $Sql_productos_actual = "SELECT img_productos FROM productos WHERE id_productos = ?";

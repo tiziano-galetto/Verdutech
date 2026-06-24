@@ -37,7 +37,7 @@ class PDF extends FPDF
       $this->Cell(100, 10, utf8_decode("REPORTE DE COMPRAS"), 0, 1, 'C', 0);
       $this->Ln(10);
 
-      $Ancho_tabla = 240;
+      $Ancho_tabla = 275;
       $Margen_x = ($this->GetPageWidth() - $Ancho_tabla) / 2;
       $this->SetX($Margen_x);
       $this->SetFillColor(76,175,80);
@@ -50,7 +50,8 @@ class PDF extends FPDF
       $this->Cell(35, 10, utf8_decode('Proveedor'), 1, 0, 'C', 1);
       $this->Cell(35, 10, utf8_decode('Método de pago'), 1, 0, 'C', 1);
       $this->Cell(45, 10, utf8_decode('Productos'), 1, 0, 'C', 1);
-      $this->Cell(35, 10, utf8_decode('Estado'), 1, 1, 'C', 1);
+      $this->Cell(35, 10, utf8_decode('Estado'), 1, 0, 'C', 1);
+      $this->Cell(35, 10, utf8_decode('Total'), 1, 1, 'C', 1);
    }
 
    function Footer()
@@ -85,7 +86,8 @@ $consulta_reporte_compras = $conn->query("
         p.nombre_fantasia,
         m.nombre_metodo_de_pago,
         c.listado_de_productos,
-        es.nombre_del_estadoo
+        es.nombre_del_estadoo,
+        c.total_compra
     FROM 
         compras c 
     INNER JOIN 
@@ -124,7 +126,7 @@ while ($Fila = $consulta_reporte_compras->fetch_assoc()) {
    $Altura_linea = 10; 
    $Altura_celda = $Lineas_productos * $Altura_linea;
 
-   $Ancho_tabla = 240; 
+   $Ancho_tabla = 275; 
    $Margen_x = ($pdf->GetPageWidth() - $Ancho_tabla) / 2;
    $pdf->SetX($Margen_x);
    $pdf->Cell(10, $Altura_celda, utf8_decode($i), 1, 0, 'C');
@@ -141,6 +143,7 @@ while ($Fila = $consulta_reporte_compras->fetch_assoc()) {
 
    $pdf->SetXY($x + 45, $y);
    $pdf->Cell(35, $Altura_celda, utf8_decode($Fila['nombre_del_estadoo']), 1, 0, 'C');
+   $pdf->Cell(35, $Altura_celda, utf8_decode($Fila['total_compra']), 1, 0, 'C');
 
    $pdf->SetY($Posicion_final);
 
